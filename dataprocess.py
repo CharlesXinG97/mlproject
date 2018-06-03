@@ -1,10 +1,8 @@
 import numpy
 import numpy as np
-import pandas as pd
 import math
-import matplotlib.pyplot as plt
 
-data= np.genfromtxt('C:/Users/dell/Desktop/ml2018/res.txt', delimiter=' ',dtype=None)
+data= np.genfromtxt('res.txt', delimiter=' ',dtype=None)
 print('loaded')
 #print(data.shape,data[0])
 
@@ -28,5 +26,5 @@ for i in range(0,66347):
             X[i][2][k]=1
         if b[k]==67:
             X[i][3][k]=1
-np.save('C:/Users/dell/Desktop/ml2018/X',X)
-np.save('C:/Users/dell/Desktop/ml2018/Y',Y)
+np.save('X',X)
+np.save('Y',Y)
