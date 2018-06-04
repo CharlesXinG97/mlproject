@@ -17,7 +17,7 @@ class pLSTM(object):
         """
         Init some hyperparameters
         """
-        self.model_name = name
+        self.name = name
 
         self.seg = 3
         self.dna_vec_size = 100
@@ -119,9 +119,15 @@ class pLSTM(object):
         self.model.add(keras.layers.Dense(2, activation='softmax'))
         
         self.model.compile(loss='categorical_crossentropy',
-                           optimizer='adam')
+                           optimizer='adam',
+                           metrics=['accuracy'])
 
-    def train(self, device=1, save_model=True):
+    def load_trained_model(self):
+        """
+        """
+        self.model = keras.models.load_model('model/%s.h5' % self.name)
+
+    def train(self, device=1, save_model=True, validation_ratio=0.2):
         """
         Train the model with given training dataset.
         
@@ -134,25 +140,50 @@ class pLSTM(object):
         X_train, Y_train, _, _ = self.get_train_test_data()
         self.model.fit(X_train, Y_train,
                        batch_size = self.batch_size,
-                       nb_epoch = self.epochs)
+                       nb_epoch = self.epochs,
+                       validation_split=validation_ratio)
         if save_model:
-            self.model.save('model/'+self.model_name)
+            self.model.save('model/%s.h5' % self.name)
     
-    def evaluate(self):
+    def evaluate(self, device=1, trained=False):
         """
         Evaluate the model with given test dataset.
+        Parameters:
+        -----------
+          device: (int) specify the id of GPU.
+          trained: (bool) if True load model
         """
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
         _, _, X_test, Y_test = self.get_train_test_data()
-        score = self.model.evaluate(X_test, Y_test)
-        return score
+        if trained:
+            self.load_trained_model()
+        print(self.model.metrics_names)
+        test_loss, test_acc = self.model.evaluate(X_test, Y_test)
+        print("%s model - test loss:%f\ttest acc:%f" % (self.name,
+                                                        test_loss,
+                                                        test_acc))
+        return test_loss, test_acc
+
+    def predict(self, device=1):
+        """
+        """
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
+        self.load_trained_model()
+        _, _, X_input, Y_input = self.get_train_test_data(0.99875)
+        print(Y_input)
+        print(self.model.predict(X_input, verbose=1))
 
 
 def main():
-    model = pLSTM('AGO2')
+    model = pLSTM('AGO2_test', epochs=20)
     model.select_data(['AGO2'])
-    model.create_model()
-    model.train()
-    model.evaluate()
+    # model.create_model()
+    # model.train()
+    # model.evaluate()
+    # model.load_trained_model()
+    model.evaluate(trained=True)
+    # model.predict()
+
 
 if __name__ == '__main__':
     main()
