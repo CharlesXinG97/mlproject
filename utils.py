@@ -33,7 +33,12 @@ def load_raw_data(prot):
         binding.extend(eval(data.split()[1]) for data in datas)
     return dna_seq, binding
          
-
-DNA_seq, binding = load_raw_data('AGO2')
-print(DNA_seq[0])
-print(binding[0])
+def dna_segmentation(dna_seq, seg=3):
+    """
+    """
+    seg_dna = []
+    i = 0
+    while i < len(dna_seq):
+        seg_dna.append(dna_seq[i:i+seg])
+        i += seg
+    return seg_dna
