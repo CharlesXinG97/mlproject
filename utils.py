@@ -2,7 +2,7 @@ import os
 import random
 import numpy as np
 
-data_dir = "RNA_trainset"
+DATA_DIR = "RNA_trainset"
 PROTEIN = ['AGO2', 'AGO1', 'AGO3', 'ALKBH5', 'AUF1', 'C17ORF85', 
         'C22ORF28', 'CAPRIN1', 'DGCR8', 'EIF4A3', 'EWSR1', 
         'FMRP', 'FOX2', 'FUS', 'FXR1', 'FXR2', 'HNRNPC', 'HUR', 
@@ -28,7 +28,7 @@ def load_raw_data(prot, shuffle=True):
     """
     dna_seq = []
     binding = []
-    data_file = os.path.join(data_dir, prot, 'train')
+    data_file = os.path.join(DATA_DIR, prot, 'train')
     with open(data_file, 'r') as f:
         datas = f.readlines()
         if shuffle:
