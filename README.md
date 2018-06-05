@@ -1,3 +1,3 @@
 # CS385 Machine Learning Course Project
 
-Something about RNA-protein biding prodiction
+Something about RNA-protein binding prodiction
