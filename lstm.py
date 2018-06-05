@@ -87,6 +87,7 @@ class pLSTM(object):
         self.data = dna_vecs
         self.label = np.eye(2)[np.array(raw_binding).reshape(-1)]
         # self.label = keras.utils.np_utils.to_categorical(raw_binding, 2)
+        print("select data for %s model completed!" % self.name)
 
     def get_train_test_data(self, fraction=0.8, verbose=False):
         """
@@ -165,7 +166,7 @@ class pLSTM(object):
         if verbose:
             self.model.summary()
 
-    def train(self, device=1, save_model=True, validation_ratio=0.2):
+    def train(self, device=1, save_model=True, validation_ratio=0.2, verbose=1):
         """
         Train the model with given training dataset.
         
@@ -173,10 +174,12 @@ class pLSTM(object):
         ----------
           device: (int) specify the id of GPU.
           save_model: (bool) if True save model.
+          validation_ratio: (float) ratio of validation set.
+          verbose: (int) control training information output.
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
         # TODO: manage multiple logs with model name
-        self.callbacks = keras.callbacks.TensorBoard(log_dir='./logs',
+        self.callbacks = keras.callbacks.TensorBoard(log_dir='./logs/%s' % self.name,
                                                      batch_size=self.batch_size,
                                                      write_images=True)
         X_train, Y_train, _, _ = self.get_train_test_data()
@@ -184,7 +187,8 @@ class pLSTM(object):
                        batch_size = self.batch_size,
                        nb_epoch = self.epochs,
                        validation_split=validation_ratio,
-                       callbacks=[self.callbacks])
+                       callbacks=[self.callbacks],
+                       verbose=verbose)
         if save_model:
             self.model.save('model/lstm/%s.h5' % self.name)
     
@@ -222,19 +226,42 @@ class LSTM_wrapper(object):
     """
     def __init__(self, prot=PROTEIN):
         """
+        Parameters:
+        ----------
+          prot: (list) a list of protein names. Default to all proteins.
         """
-        pass
+        self.models = {}
+        self.proteins = prot
 
+        for prot in self.proteins:
+            self.models[prot] = pLSTM(prot)
+            self.models[prot].select_data([prot])
+
+    def train(self, verbose=0):
+        """
+        Train model for proteins one by one.
+        In the case that we have 37 proteins, verbose is default to 0.
+        """
+        for prot in self.proteins:
+            self.models[prot].create_model()
+            print("Create model for %s success" % prot)
+            self.models[prot].train(verbose=verbose) 
+            print("%s model has completed training." % prot)
+            self.models[prot].evaluate()
+        print("All models training process has been completed!")
+
+    def evaluate(self):
+        """
+        """
+        for prot in self.proteins:
+            print("evaluate %s model:" % prot)
+            self.models[prot].evaluate(trained=True)
 
 
 def main():
-    model = pLSTM('AGO1_m2')
-    model.select_data(['AGO1'])
-    # model.create_model(model_id=2)
-    # model.train()
-    model.evaluate(trained=True)
-
-
+    models = LSTM_wrapper()
+    models.train(verbose=1)
+    
 if __name__ == '__main__':
     main()
 
