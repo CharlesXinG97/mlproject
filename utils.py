@@ -47,3 +47,31 @@ def dna_segmentation(dna_seq, seg=3):
         i += seg
     return seg_dna
 
+def roc(ground_truth, pred_result):
+    """
+    Calculate the roc value of given results and ground truth.
+    Parameters:
+    ----------
+      ground_truth: (nd_array) an array of label ground truth.
+      pred_result: (nd_array) an array of predicted label.
+    Returns:
+    -------
+      roc: a point in roc space, the x-axis is the false positive rate
+           while the y-axis is the true positive rate.
+    """
+    assert len(ground_truth)==len(pred_result)
+    tp, fp, tn, fn = 1e-8, 1e-8, 1e-8, 1e-8
+    for i in range(len(ground_truth)):
+        if ground_truth[i][0] == 0 and pred_result[i][0] == 0:
+            tp += 1
+        elif ground_truth[i][0] == 0 and pred_result[i][0] == 1:
+            fn += 1
+        elif ground_truth[i][0] == 1 and pred_result[i][0] == 0:
+            fp += 1
+        elif ground_truth[i][0] == 1 and pred_result[i][0] == 1:
+            tn += 1
+    roc_tpr, roc_fpr = tp/(tp+fn), fp/(fp+tn)
+    return (roc_fpr, roc_tpr)
+
+# TODO: eliminate redundent data
+# TODO: shuflle all data to test
