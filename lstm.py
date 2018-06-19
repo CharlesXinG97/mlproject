@@ -159,7 +159,7 @@ class pLSTM(object):
                                metrics=['accuracy'])
             
 
-    def load_trained_model(self, verbose=True):
+    def load_trained_model(self, verbose=False):
         """
         """
         self.model = keras.models.load_model('model/lstm/%s.h5' % self.name)
@@ -210,14 +210,20 @@ class pLSTM(object):
         return test_loss, test_acc
 
     # TODO: should get input data outside the function.
-    def predict(self, device=1):
+    def predict(self, device=1, threashold=0.1):
         """
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
         self.load_trained_model()
-        _, _, X_input, Y_input = self.get_train_test_data(0.99875)
+        # _, _, X_input, Y_input = self.get_train_test_data(0.99875)
+        _, _, X_input, Y_input = self.get_train_test_data(0.8)
         print(Y_input)
-        print(self.model.predict(X_input, verbose=1))
+        predict_result = self.model.predict(X_input, verbose=1)
+        
+        # turn probability result to index result.
+        _pre_result = (predict_result > threashold).astype(np.float32)
+        print(_pre_result)
+        print(roc(Y_input, _pre_result))
 
 
 class LSTM_wrapper(object):
@@ -257,10 +263,20 @@ class LSTM_wrapper(object):
             print("evaluate %s model:" % prot)
             self.models[prot].evaluate(trained=True)
 
+    # TODO: test: one dna sequence - multiple class in pLSTM
+    # TODO: why evalutation accuracy differ in training procedure
+    #       and pure evaluating procedure ?
+    # TODO: test: one dna sequence - pLSTM vs SVM vs xg model
+
 
 def main():
-    models = LSTM_wrapper()
-    models.train(verbose=1)
+    # models = LSTM_wrapper()
+    # models.train(verbose=1)
+    # models.evaluate()
+    model = pLSTM('AGO2')
+    model.select_data(['AGO2'])
+    model.predict()
+
     
 if __name__ == '__main__':
     main()
