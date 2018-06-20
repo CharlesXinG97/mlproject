@@ -110,7 +110,11 @@ class pLSTM(object):
             test_pos = np.sum(test_label[:, 1])
             print("train pos:%d\tneg:%d\n" % (train_pos, len(train_label)-train_pos))
             print("test pos:%d\tneg:%d\n" % (test_pos, len(test_label)-test_pos))
-        return train_data, train_label, test_data, test_label
+        # return train_data, train_label, test_data, test_label
+        self.train_data = train_data
+        self.train_label = train_label
+        self.test_data = test_data
+        self.test_label = test_label
 
 
     def create_model(self, model_id=0):
@@ -131,7 +135,8 @@ class pLSTM(object):
             self.model = keras.models.Sequential()
             self.model.add(keras.layers.LSTM(units=self.units,
                                              activation=self.activation,
-                                             input_shape=(100, 100)))
+                                             input_shape=(100, 100),
+                                             recurrent_dropout=0.5))
             self.model.add(keras.layers.Dense(2, activation='softmax'))
             
             self.model.compile(loss='categorical_crossentropy',
@@ -166,7 +171,7 @@ class pLSTM(object):
         if verbose:
             self.model.summary()
 
-    def train(self, device=1, save_model=True, validation_ratio=0.2, verbose=1):
+    def train(self, device=1, save_model=True, validation_ratio=0.1, verbose=1):
         """
         Train the model with given training dataset.
         
@@ -179,11 +184,11 @@ class pLSTM(object):
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
         # TODO: manage multiple logs with model name
-        self.callbacks = keras.callbacks.TensorBoard(log_dir='./logs/%s' % self.name,
+        self.callbacks = keras.callbacks.TensorBoard(log_dir='./tune-logs/%s' % self.name,
                                                      batch_size=self.batch_size,
                                                      write_images=True)
-        X_train, Y_train, _, _ = self.get_train_test_data()
-        self.model.fit(X_train, Y_train,
+        self.get_train_test_data(verbose=True)
+        self.model.fit(self.train_data, self.train_label,
                        batch_size = self.batch_size,
                        nb_epoch = self.epochs,
                        validation_split=validation_ratio,
@@ -201,16 +206,16 @@ class pLSTM(object):
           trained: (bool) if True load model
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
-        _, _, X_test, Y_test = self.get_train_test_data()
         if trained:
             self.load_trained_model()
+            self.get_train_test_data()
         print(self.model.metrics_names)
-        test_loss, test_acc = self.model.evaluate(X_test, Y_test)
+        test_loss, test_acc = self.model.evaluate(self.test_data, self.test_label)
         print("%s model - test loss:%f\ttest acc:%f" % (self.name, test_loss, test_acc))
         return test_loss, test_acc
 
     # TODO: should get input data outside the function.
-    def predict(self, device=1, threashold=0.1):
+    def predict(self, device=1, threashold=0.8):
         """
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
@@ -273,9 +278,10 @@ def main():
     # models = LSTM_wrapper()
     # models.train(verbose=1)
     # models.evaluate()
-    model = pLSTM('AGO2')
+    model = pLSTM('AGO2_TUNE')
     model.select_data(['AGO2'])
-    model.predict()
+    model.create_model()
+    model.train()
 
     
 if __name__ == '__main__':
