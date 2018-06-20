@@ -3,6 +3,7 @@
 # ======================================================
 import os
 import keras
+import argparse
 import numpy as np
 from utils import *
 from gensim.models import Word2Vec
@@ -13,7 +14,7 @@ class pLSTM(object):
     def __init__(self, name, units=64, activation='tanh', 
             recurrent_activation='hard_sigmoid',
             batch_size=64, epochs = 128,
-            dna_vec_size=100, w2v_window=5):
+            dna_vec_size=100, w2v_window=5, device_id="1"):
         """
         Init some hyperparameters
         Parameters:
@@ -32,6 +33,8 @@ class pLSTM(object):
         self.recurrent_activation = recurrent_activation
         self.batch_size = batch_size
         self.epochs = epochs
+        
+        self.device_id = device_id
 
     def train_word2vec(self, window, size):
         """
@@ -171,18 +174,17 @@ class pLSTM(object):
         if verbose:
             self.model.summary()
 
-    def train(self, device=1, save_model=True, validation_ratio=0.1, verbose=1):
+    def train(self, save_model=True, validation_ratio=0.1, verbose=1):
         """
         Train the model with given training dataset.
         
         Parameters:
         ----------
-          device: (int) specify the id of GPU.
           save_model: (bool) if True save model.
           validation_ratio: (float) ratio of validation set.
           verbose: (int) control training information output.
         """
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
+        os.environ["CUDA_VISIBLE_DEVICES"] = self.device_id
         # TODO: manage multiple logs with model name
         self.callbacks = keras.callbacks.TensorBoard(log_dir='./tune-logs/%s' % self.name,
                                                      batch_size=self.batch_size,
@@ -197,15 +199,14 @@ class pLSTM(object):
         if save_model:
             self.model.save('model/lstm/%s.h5' % self.name)
     
-    def evaluate(self, device=1, trained=False):
+    def evaluate(self, trained=False):
         """
         Evaluate the model with given test dataset.
         Parameters:
         -----------
-          device: (int) specify the id of GPU.
           trained: (bool) if True load model
         """
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
+        os.environ["CUDA_VISIBLE_DEVICES"] = self.device_id
         if trained:
             self.load_trained_model()
             self.get_train_test_data()
@@ -215,10 +216,10 @@ class pLSTM(object):
         return test_loss, test_acc
 
     # TODO: should get input data outside the function.
-    def predict(self, device=1, threashold=0.8):
+    def predict(self, threashold=0.8):
         """
         """
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(device)
+        os.environ["CUDA_VISIBLE_DEVICES"] = self.device_id
         self.load_trained_model()
         # _, _, X_input, Y_input = self.get_train_test_data(0.99875)
         _, _, X_input, Y_input = self.get_train_test_data(0.8)
@@ -275,13 +276,27 @@ class LSTM_wrapper(object):
 
 
 def main():
-    # models = LSTM_wrapper()
-    # models.train(verbose=1)
-    # models.evaluate()
-    model = pLSTM('AGO2_TUNE')
-    model.select_data(['AGO2'])
-    model.create_model()
-    model.train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("mode",
+                   help="select mode: train or test")
+    parser.add_argument("-n", "--model_name",
+                   help="give a name to the model")
+    parser.add_argument("-d", "--data_name",
+                   help="specify the data set")
+    parser.add_argument("--device_id", 
+                   help="specify the id of the GPU device, we default it to 1. If device 1 is used, you can select device id in 0, 2, 3",
+                   default="1")
+    args = parser.parse_args()
+    print("="*40)
+    print("Type --help for information")
+    print("="*40)
+
+    if args.mode == "train":
+        model = pLSTM(args.model_name, device_id=args.device_id)
+        model.select_data([args.data_name])
+        model.create_model()
+        model.train()
+        model.evaluate()
 
     
 if __name__ == '__main__':
