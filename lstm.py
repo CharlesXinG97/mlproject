@@ -7,13 +7,14 @@ import argparse
 import numpy as np
 from utils import *
 from gensim.models import Word2Vec
+from sklearn.metrics import roc_auc_score
 
 class pLSTM(object):
     """
     """
     def __init__(self, name, units=64, activation='tanh', 
             recurrent_activation='hard_sigmoid',
-            batch_size=64, epochs = 128,
+            batch_size=64, epochs = 64,
             dna_vec_size=100, w2v_window=5, device_id="1"):
         """
         Init some hyperparameters
@@ -90,7 +91,7 @@ class pLSTM(object):
         self.data = dna_vecs
         self.label = np.eye(2)[np.array(raw_binding).reshape(-1)]
         # self.label = keras.utils.np_utils.to_categorical(raw_binding, 2)
-        print("select data for %s model completed!" % self.name)
+        print("select data %s for %s model completed!" % (datasets, self.name))
 
     def get_train_test_data(self, fraction=0.8, verbose=False):
         """
@@ -150,17 +151,22 @@ class pLSTM(object):
             self.model = keras.models.Sequential()
             self.model.add(keras.layers.LSTM(units=self.units,
                                              activation=self.activation,
-                                             input_shape=(100, 100)))
+                                             input_shape=(100, 100),
+                                             dropout=0.5,
+                                             recurrent_dropout=0.5))
             self.model.add(keras.layers.Dense(2, activation='softmax'))
             self.model.compile(loss='categorical_crossentropy',
                                optimizer='adam',
                                metrics=['accuracy'])
         elif model_id==2:
+            self.units = 256
             self.model = keras.models.Sequential()
             self.model.add(keras.layers.LSTM(units=self.units,
                                              activation=self.activation,
+                                             recurrent_dropout=0.75,
                                              input_shape=(100, 100)))
-            self.model.add(keras.layers.Dense(128, activation='tanh'))
+            self.model.add(keras.layers.Dense(32, activation='tanh'))
+            self.model.add(keras.layers.Dropout(rate=0.5))
             self.model.add(keras.layers.Dense(2, activation='softmax'))
             self.model.compile(loss='categorical_crossentropy',
                                optimizer='adam',
@@ -189,7 +195,7 @@ class pLSTM(object):
         self.callbacks = keras.callbacks.TensorBoard(log_dir='./tune-logs/%s' % self.name,
                                                      batch_size=self.batch_size,
                                                      write_images=True)
-        self.get_train_test_data(verbose=True)
+        self.get_train_test_data(verbose=True, fraction=0.8)
         self.model.fit(self.train_data, self.train_label,
                        batch_size = self.batch_size,
                        nb_epoch = self.epochs,
@@ -210,9 +216,11 @@ class pLSTM(object):
         if trained:
             self.load_trained_model()
             self.get_train_test_data()
-        print(self.model.metrics_names)
         test_loss, test_acc = self.model.evaluate(self.test_data, self.test_label)
         print("%s model - test loss:%f\ttest acc:%f" % (self.name, test_loss, test_acc))
+
+        predict_result = self.model.predict(self.test_data, verbose=1)
+        print("roc auc score: %f" % roc_auc_score(self.test_label[:,1], predict_result[:,1]))
         return test_loss, test_acc
 
     # TODO: should get input data outside the function.
@@ -221,15 +229,16 @@ class pLSTM(object):
         """
         os.environ["CUDA_VISIBLE_DEVICES"] = self.device_id
         self.load_trained_model()
-        # _, _, X_input, Y_input = self.get_train_test_data(0.99875)
-        _, _, X_input, Y_input = self.get_train_test_data(0.8)
-        print(Y_input)
-        predict_result = self.model.predict(X_input, verbose=1)
+        self.get_train_test_data(0.8, verbose=True)
+        print(self.test_label)
+        predict_result = self.model.predict(self.test_data, verbose=1)
         
         # turn probability result to index result.
         _pre_result = (predict_result > threashold).astype(np.float32)
         print(_pre_result)
-        print(roc(Y_input, _pre_result))
+        print("roc socre: %s" % (roc(self.test_label, _pre_result),))
+
+        print("roc auc socre: %f" % roc_auc_score(self.test_label[:,1], predict_result[:,1]))
 
 
 class LSTM_wrapper(object):
@@ -278,13 +287,13 @@ class LSTM_wrapper(object):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode",
-                   help="select mode: train or test")
+                   help="select mode:\ntrain: specify name and dataset of the model\npredict: specify name and given dataset of the model")
     parser.add_argument("-n", "--model_name",
                    help="give a name to the model")
     parser.add_argument("-d", "--data_name",
                    help="specify the data set")
     parser.add_argument("--device_id", 
-                   help="specify the id of the GPU device, we default it to 1. If device 1 is used, you can select device id in 0, 2, 3",
+                   help="specify the id of the GPU device, we default it to 1.\n If device 1 is used, you can select device id in 0, 2, 3",
                    default="1")
     args = parser.parse_args()
     print("="*40)
@@ -298,7 +307,11 @@ def main():
         model.train()
         model.evaluate()
 
-    
+    if args.mode == "predict":
+        model = pLSTM(args.model_name, device_id=args.device_id)
+        model.select_data([args.data_name])
+        model.predict()
+
 if __name__ == '__main__':
     main()
 
